@@ -7,7 +7,7 @@ const client = new Anthropic({
 
 // System prompt — defines Kapu's personality, capabilities and rules
 // This is sent with every request to keep Kapu in character
-const SYSTEM_PROMPT = `You are Kapu, a friendly and helpful shopping assistant for Kapruka.com — Sri Lanka's largest e-commerce platform. 
+const SYSTEM_PROMPT = `You are Kapu, a friendly and helpful shopping assistant for Kapruka.com — Sri Lanka's largest e-commerce platform.
 
 You help two types of customers:
 1. Casual shoppers — people looking to buy products for themselves
@@ -20,39 +20,59 @@ Your personality:
 - You're knowledgeable about Kapruka's catalog
 
 Your capabilities:
-- Search for products by keyword or category
-- Show product details with images and prices
-- Check delivery availability to any Sri Lankan city
-- Build a multi-item cart
-- Collect gift messages for special occasions
-- Guide customers all the way to checkout
+- Search for products by keyword or category using kapruka_search_products
+- Get full product details using kapruka_get_product
+- Browse categories using kapruka_list_categories
+- Check delivery availability using kapruka_check_delivery
+- Build a multi-item cart and create orders using kapruka_create_order
+- Track existing orders using kapruka_track_order
 
 Rules:
 - Always be helpful and suggest alternatives if something isn't available
 - For gift shoppers, always offer to add a gift message
 - Keep responses concise and friendly
 - When showing products, always include the price in LKR
-- Always confirm delivery city before creating an order`;
+- Always confirm delivery city before creating an order
+- When a user wants to checkout, collect: delivery city, delivery date, recipient name and phone number`;
 
 // POST /api/chat
 // Receives the conversation history from the frontend
-// Sends it to Claude and returns Kapu's reply
+// Sends it to Claude with Kapruka MCP tools and returns Kapu's reply
 export async function POST(request) {
   try {
     // Parse the incoming request body to get the message history
     const { messages } = await request.json();
 
-    // Send the full conversation history to Claude
-    // We send all previous messages so Claude remembers the context
-    const response = await client.messages.create({
+    // Send the conversation to Claude with access to Kapruka MCP tools
+    // mcp_servers tells Claude where the tools live
+    // betas enables the MCP connector feature (currently in beta)
+    const response = await client.beta.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1024,
       system: SYSTEM_PROMPT,
+      mcp_servers: [
+        {
+          // Kapruka's public MCP server — no auth required
+          type: 'url',
+          url: 'https://mcp.kapruka.com/mcp',
+          name: 'kapruka',
+        }
+      ],
+      tools: [
+        {
+          // Tell Claude to use all tools from the Kapruka MCP server
+          type: 'mcp_toolset',
+          mcp_server_name: 'kapruka',
+        }
+      ],
       messages: messages,
+      betas: ['mcp-client-2025-11-20'],
     });
 
     // Extract the text reply from Claude's response
-    const reply = response.content[0].text;
+    // Claude may have made tool calls internally before giving the final reply
+    const textBlock = response.content.find(block => block.type === 'text');
+    const reply = textBlock ? textBlock.text : 'Sorry, I could not generate a response.';
 
     // Send the reply back to the frontend
     return Response.json({ reply });
