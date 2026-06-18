@@ -7,6 +7,7 @@ const client = new Anthropic({
 
 // System prompt — defines Kapu's personality, capabilities and rules
 // This is sent with every request to keep Kapu in character
+
 const SYSTEM_PROMPT = `You are Kapu, a friendly and helpful shopping assistant for Kapruka.com — Sri Lanka's largest e-commerce platform.
 
 You help two types of customers:
@@ -33,7 +34,25 @@ Rules:
 - Keep responses concise and friendly
 - When showing products, always include the price in LKR
 - Always confirm delivery city before creating an order
-- When a user wants to checkout, collect: delivery city, delivery date, recipient name and phone number`;
+- When a user wants to checkout, collect: delivery city, delivery date, recipient name and phone number
+
+IMPORTANT — Structured output format:
+Whenever you find and want to display products, you MUST include a JSON block at the very end of your response in this exact format. Do not put anything after the JSON block:
+
+<products>
+[
+  {
+    "id": "product_id_here",
+    "name": "Product Name",
+    "price": 1234,
+    "currency": "LKR",
+    "image": "https://image-url-here.jpg",
+    "url": "https://kapruka.com/product-url"
+  }
+]
+</products>
+
+Only include this block when you have actual products to show. Do not include it for general conversation.`;
 
 // POST /api/chat
 // Receives the conversation history from the frontend
@@ -69,13 +88,28 @@ export async function POST(request) {
       betas: ['mcp-client-2025-11-20'],
     });
 
-    // Extract the text reply from Claude's response
-    // Claude may have made tool calls internally before giving the final reply
+  // Extract the text reply and any structured product data from Claude's response
     const textBlock = response.content.find(block => block.type === 'text');
-    const reply = textBlock ? textBlock.text : 'Sorry, I could not generate a response.';
+    const fullText = textBlock ? textBlock.text : 'Sorry, I could not generate a response.';
 
-    // Send the reply back to the frontend
-    return Response.json({ reply });
+    // Parse out the product JSON block if present
+    // Claude wraps product data in <products>...</products> tags
+    let reply = fullText;
+    let products = [];
+
+    const productMatch = fullText.match(/<products>([\s\S]*?)<\/products>/);
+    if (productMatch) {
+      try {
+        products = JSON.parse(productMatch[1].trim());
+        // Remove the products block from the visible reply text
+        reply = fullText.replace(/<products>[\s\S]*?<\/products>/, '').trim();
+      } catch (e) {
+        console.error('Failed to parse products JSON:', e);
+      }
+    }
+
+    // Send the reply and structured product data back to the frontend
+    return Response.json({ reply, products });
   } catch (error) {
     // Log the error server-side for debugging
     console.error('Chat error:', error);
