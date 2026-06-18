@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from 'react';
 import ProductCarousel from './components/ProductCarousel';
 
 export default function Home() {
-  // Chat message history
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
@@ -15,20 +14,14 @@ export default function Home() {
 
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-
-  // Cart state — array of products the user has added
   const [cart, setCart] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
-
   const bottomRef = useRef(null);
 
-  // Auto-scroll to latest message
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Add a product to the cart
-  // If it already exists, increment quantity instead
   function addToCart(product) {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
@@ -43,18 +36,26 @@ export default function Home() {
     });
   }
 
-  // Remove a product from the cart entirely
   function removeFromCart(productId) {
     setCart(prev => prev.filter(item => item.id !== productId));
   }
 
-  // Calculate total cart value in LKR
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  async function sendMessage() {
-    if (!input.trim() || loading) return;
+  // Quick suggestion chips shown below the welcome message
+  const suggestions = [
+    { label: '🎁 Find a gift', message: 'I need to find a gift' },
+    { label: '🎂 Browse cakes', message: 'Show me some cakes' },
+    { label: '💐 Send flowers', message: 'I want to send flowers' },
+    { label: '📦 Track my order', message: 'I want to track my order' },
+  ];
 
-    const userMessage = { role: 'user', content: input, products: [] };
+  async function sendMessage(text) {
+    const messageText = text || input;
+    if (!messageText.trim() || loading) return;
+
+    const userMessage = { role: 'user', content: messageText, products: [] };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setLoading(true);
@@ -63,7 +64,6 @@ export default function Home() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // Only send role and content to the API — not UI-only fields like products
         body: JSON.stringify({
           messages: [...messages, userMessage].map(({ role, content }) => ({ role, content })),
         }),
@@ -91,55 +91,76 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-950 text-white">
+    <div className="flex flex-col h-screen" style={{ background: '#f5f3ff' }}>
 
       {/* Header */}
-      <div className="flex items-center gap-3 px-6 py-4 bg-gray-900 border-b border-gray-800">
-        <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center font-bold text-white text-lg">
+      <div className="flex items-center gap-3 px-6 py-4 bg-white border-b" style={{ borderColor: '#e4dff5' }}>
+        <div className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white text-lg" style={{ background: '#da532c' }}>
           K
         </div>
         <div>
-          <h1 className="font-semibold text-white">Kapu</h1>
-          <p className="text-xs text-green-400">● Online</p>
+          <h1 className="font-semibold text-gray-900">Kapu</h1>
+          <p className="text-xs text-green-500 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+            Online
+          </p>
         </div>
-        <div className="ml-auto flex items-center gap-4">
-          <span className="text-sm text-gray-400">Powered by Kapruka</span>
+        <span className="ml-auto text-xs text-gray-300 mr-3">Powered by Kapruka</span>
 
-          {/* Cart button — shows item count badge */}
-          <button
-            onClick={() => setCartOpen(prev => !prev)}
-            className="relative bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
-          >
-            🛒 Cart
-            {cart.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
-                {cart.reduce((sum, item) => sum + item.quantity, 0)}
-              </span>
-            )}
-          </button>
-        </div>
+        {/* Cart button */}
+        <button
+          onClick={() => setCartOpen(prev => !prev)}
+          className="relative flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-colors"
+          style={{ background: '#f0ecff', border: '0.5px solid #e4dff5', color: '#555' }}
+        >
+          🛒 Cart
+          {cartCount > 0 && (
+            <span className="absolute -top-1 -right-1 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-medium" style={{ background: '#da532c' }}>
+              {cartCount}
+            </span>
+          )}
+        </button>
       </div>
 
-      {/* Main area — chat + optional cart sidebar */}
+      {/* Main area */}
       <div className="flex flex-1 overflow-hidden">
 
-        {/* Chat messages */}
+        {/* Chat */}
         <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
           {messages.map((msg, i) => (
             <div key={i}>
               <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[75%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-                  msg.role === 'user'
-                    ? 'bg-orange-500 text-white rounded-br-sm'
-                    : 'bg-gray-800 text-gray-100 rounded-bl-sm'
-                }`}>
+                <div
+                  className="max-w-[75%] px-4 py-3 rounded-2xl text-sm leading-relaxed"
+                  style={
+                    msg.role === 'user'
+                      ? { background: '#da532c', color: '#fff', borderRadius: '16px 16px 4px 16px' }
+                      : { background: '#fff', color: '#1a1a1a', borderRadius: '16px 16px 16px 4px', border: '0.5px solid #e4dff5' }
+                  }
+                >
                   {msg.content}
                 </div>
               </div>
 
-              {/* Product carousel shown below assistant messages that have products */}
+              {/* Suggestion chips — only after the first message */}
+              {i === 0 && (
+                <div className="flex gap-2 flex-wrap mt-3">
+                  {suggestions.map(s => (
+                    <button
+                      key={s.label}
+                      onClick={() => sendMessage(s.message)}
+                      className="px-3 py-1.5 rounded-full text-xs transition-colors"
+                      style={{ background: '#fff', border: '0.5px solid #e4dff5', color: '#666' }}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Product carousel */}
               {msg.role === 'assistant' && msg.products?.length > 0 && (
-                <div className="mt-2 px-2">
+                <div className="mt-2 px-1">
                   <ProductCarousel products={msg.products} onAddToCart={addToCart} />
                 </div>
               )}
@@ -148,7 +169,7 @@ export default function Home() {
 
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-gray-800 px-4 py-3 rounded-2xl rounded-bl-sm text-sm text-gray-400">
+              <div className="px-4 py-3 rounded-2xl text-sm" style={{ background: '#fff', color: '#999', border: '0.5px solid #e4dff5', borderRadius: '16px 16px 16px 4px' }}>
                 Kapu is typing...
               </div>
             </div>
@@ -156,48 +177,43 @@ export default function Home() {
           <div ref={bottomRef} />
         </div>
 
-        {/* Cart sidebar — slides in when cart is open */}
+        {/* Cart sidebar */}
         {cartOpen && (
-          <div className="w-80 bg-gray-900 border-l border-gray-800 flex flex-col">
-            <div className="px-4 py-4 border-b border-gray-800 flex items-center justify-between">
-              <h2 className="font-semibold">Your Cart</h2>
-              <button onClick={() => setCartOpen(false)} className="text-gray-400 hover:text-white">✕</button>
+          <div className="w-80 bg-white flex flex-col" style={{ borderLeft: '0.5px solid #e4dff5' }}>
+            <div className="px-4 py-4 flex items-center justify-between" style={{ borderBottom: '0.5px solid #e4dff5' }}>
+              <h2 className="font-semibold text-gray-900">Your Cart</h2>
+              <button onClick={() => setCartOpen(false)} className="text-gray-400 hover:text-gray-600">✕</button>
             </div>
 
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
               {cart.length === 0 ? (
-                <p className="text-gray-500 text-sm text-center mt-8">Your cart is empty</p>
+                <p className="text-gray-400 text-sm text-center mt-8">Your cart is empty</p>
               ) : (
                 cart.map(item => (
-                  <div key={item.id} className="flex items-center gap-3 bg-gray-800 rounded-xl p-3">
-                    {/* Item image */}
+                  <div key={item.id} className="flex items-center gap-3 rounded-xl p-3" style={{ background: '#f5f3ff', border: '0.5px solid #e4dff5' }}>
                     {item.image && (
                       <img src={item.image} alt={item.name} className="w-12 h-12 rounded-lg object-cover" />
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-white font-medium truncate">{item.name}</p>
-                      <p className="text-xs text-orange-400">LKR {item.price?.toLocaleString()} × {item.quantity}</p>
+                      <p className="text-xs font-medium text-gray-800 truncate">{item.name}</p>
+                      <p className="text-xs" style={{ color: '#da532c' }}>LKR {item.price?.toLocaleString()} × {item.quantity}</p>
                     </div>
-                    {/* Remove button */}
-                    <button
-                      onClick={() => removeFromCart(item.id)}
-                      className="text-gray-500 hover:text-red-400 text-xs"
-                    >
-                      ✕
-                    </button>
+                    <button onClick={() => removeFromCart(item.id)} className="text-gray-300 hover:text-red-400 text-xs">✕</button>
                   </div>
                 ))
               )}
             </div>
 
-            {/* Cart total and checkout button */}
             {cart.length > 0 && (
-              <div className="px-4 py-4 border-t border-gray-800 space-y-3">
+              <div className="px-4 py-4 space-y-3" style={{ borderTop: '0.5px solid #e4dff5' }}>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Total</span>
-                  <span className="font-bold text-white">LKR {cartTotal.toLocaleString()}</span>
+                  <span className="font-semibold text-gray-900">LKR {cartTotal.toLocaleString()}</span>
                 </div>
-                <button className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 rounded-xl font-medium transition-colors">
+                <button
+                  className="w-full text-white py-3 rounded-xl font-medium transition-colors text-sm"
+                  style={{ background: '#da532c' }}
+                >
                   Proceed to Checkout
                 </button>
               </div>
@@ -206,11 +222,12 @@ export default function Home() {
         )}
       </div>
 
-      {/* Input area */}
-      <div className="px-4 py-4 bg-gray-900 border-t border-gray-800">
+      {/* Input */}
+      <div className="px-4 py-4 bg-white" style={{ borderTop: '0.5px solid #e4dff5' }}>
         <div className="flex gap-3 items-end max-w-4xl mx-auto">
           <textarea
-            className="flex-1 bg-gray-800 text-white rounded-2xl px-4 py-3 text-sm resize-none outline-none border border-gray-700 focus:border-orange-500 transition-colors"
+            className="flex-1 rounded-2xl px-4 py-3 text-sm resize-none outline-none transition-colors"
+            style={{ background: '#f5f3ff', border: '0.5px solid #e4dff5', color: '#1a1a1a' }}
             rows={1}
             placeholder="Ask Kapu anything..."
             value={input}
@@ -218,9 +235,10 @@ export default function Home() {
             onKeyDown={handleKeyDown}
           />
           <button
-            onClick={sendMessage}
+            onClick={() => sendMessage()}
             disabled={loading || !input.trim()}
-            className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white px-5 py-3 rounded-2xl text-sm font-medium transition-colors"
+            className="text-white px-5 py-3 rounded-2xl text-sm font-medium transition-colors disabled:opacity-50"
+            style={{ background: '#da532c' }}
           >
             Send
           </button>
