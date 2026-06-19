@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from 'react';
 import ProductCarousel from './components/ProductCarousel';
 import GiftMessageForm from './components/GiftMessageForm';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export default function Home() {
   const [messages, setMessages] = useState([
@@ -208,7 +210,29 @@ Delivery date: ${details.deliveryDate}.${details.giftMessage ? ` Gift message: "
                       : { background: t.surface, color: t.text, borderRadius: '16px 16px 16px 4px', border: `0.5px solid ${t.borderStrong}` }
                   }
                 >
-                  {msg.content}
+                  {/* Assistant messages render as markdown (bold, lists, links).
+                      User messages render as plain text. */}
+                  {msg.role === 'assistant' ? (
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                        table: ({ children }) => (
+                          <table className="w-full text-xs my-2 border-collapse">{children}</table>
+                        ),
+                        th: ({ children }) => (
+                          <th className="text-left px-2 py-1 border-b font-medium" style={{ borderColor: t.border }}>{children}</th>
+                        ),
+                        td: ({ children }) => (
+                          <td className="px-2 py-1 border-b" style={{ borderColor: t.border }}>{children}</td>
+                        ),
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
+                  ) : (
+                    msg.content
+                  )}
                 </div>
               </div>
 

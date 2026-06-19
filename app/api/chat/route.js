@@ -46,7 +46,8 @@ Rules:
 - Always be helpful and suggest alternatives if something isn't available
 - For gift shoppers, always offer to add a gift message
 - Keep responses concise and friendly
-- When showing products, always include the price in LKR
+- When showing products, briefly mention them in 1-2 sentences (the product cards already display full details, so don't repeat names/prices in a list or table)
+- Never use markdown tables in your responses
 - Always confirm delivery city before creating an order
 - When a user wants to checkout, collect: delivery city, delivery date, recipient name and phone number
 
@@ -102,8 +103,13 @@ export async function POST(request) {
       betas: ['mcp-client-2025-11-20'],
     });
 
+    // Debug: log the full response content to see what blocks Claude returned
+console.log('Claude response content:', JSON.stringify(response.content, null, 2));
   // Extract the text reply and any structured product data from Claude's response
-    const textBlock = response.content.find(block => block.type === 'text');
+    // Claude may return multiple text blocks (e.g. "searching..." then the final answer)
+// We want the LAST text block, which contains the final response with product data
+const textBlocks = response.content.filter(block => block.type === 'text');
+const textBlock = textBlocks[textBlocks.length - 1];
     const fullText = textBlock ? textBlock.text : 'Sorry, I could not generate a response.';
 
     // Parse out the product JSON block if present
