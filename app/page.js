@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import ProductCarousel from './components/ProductCarousel';
+import GiftMessageForm from './components/GiftMessageForm';
 
 export default function Home() {
   const [messages, setMessages] = useState([
@@ -16,6 +17,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [cart, setCart] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const bottomRef = useRef(null);
 
@@ -55,6 +57,33 @@ export default function Home() {
   // Remove product from cart entirely
   function removeFromCart(productId) {
     setCart(prev => prev.filter(item => item.id !== productId));
+  }
+
+  // Handle checkout form submission
+  // Sends order details to Kapu who will call kapruka_create_order
+  function handleCheckout(e) {
+    e.preventDefault();
+    const form = e.target;
+    const details = {
+      recipientName: form.recipientName.value,
+      recipientPhone: form.recipientPhone.value,
+      deliveryCity: form.deliveryCity.value,
+      deliveryDate: form.deliveryDate.value,
+      giftMessage: form.giftMessage.value,
+    };
+
+    // Close the form and cart
+    setCheckoutOpen(false);
+    setCartOpen(false);
+
+    // Build a message to send to Kapu with all the order details
+    const cartSummary = cart.map(item => `${item.name} (x${item.quantity})`).join(', ');
+    const message = `Please place my order for: ${cartSummary}. 
+Deliver to: ${details.recipientName}, ${details.deliveryCity}. 
+Phone: ${details.recipientPhone}. 
+Delivery date: ${details.deliveryDate}.${details.giftMessage ? ` Gift message: "${details.giftMessage}".` : ''}`;
+
+    sendMessage(message);
   }
 
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -117,7 +146,10 @@ export default function Home() {
         style={{ background: t.surface, borderBottom: `0.5px solid ${t.border}` }}
       >
         {/* Kapu avatar */}
-        <div className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white text-lg flex-shrink-0" style={{ background: '#da532c' }}>
+        <div
+          className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white text-lg flex-shrink-0"
+          style={{ background: '#da532c' }}
+        >
           K
         </div>
 
@@ -150,7 +182,10 @@ export default function Home() {
         >
           🛒 Cart
           {cartCount > 0 && (
-            <span className="absolute -top-1 -right-1 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-medium" style={{ background: '#da532c' }}>
+            <span
+              className="absolute -top-1 -right-1 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-medium"
+              style={{ background: '#da532c' }}
+            >
               {cartCount}
             </span>
           )}
@@ -222,7 +257,10 @@ export default function Home() {
             className="w-80 flex flex-col transition-colors"
             style={{ background: t.surface, borderLeft: `0.5px solid ${t.border}` }}
           >
-            <div className="px-4 py-4 flex items-center justify-between" style={{ borderBottom: `0.5px solid ${t.border}` }}>
+            <div
+              className="px-4 py-4 flex items-center justify-between"
+              style={{ borderBottom: `0.5px solid ${t.border}` }}
+            >
               <h2 className="font-semibold" style={{ color: t.text }}>Your Cart</h2>
               <button onClick={() => setCartOpen(false)} style={{ color: t.textMuted }}>✕</button>
             </div>
@@ -244,7 +282,13 @@ export default function Home() {
                       <p className="text-xs font-medium truncate" style={{ color: t.text }}>{item.name}</p>
                       <p className="text-xs" style={{ color: '#da532c' }}>LKR {item.price?.toLocaleString()} × {item.quantity}</p>
                     </div>
-                    <button onClick={() => removeFromCart(item.id)} className="text-xs hover:text-red-400" style={{ color: t.textMuted }}>✕</button>
+                    <button
+                      onClick={() => removeFromCart(item.id)}
+                      className="text-xs hover:text-red-400"
+                      style={{ color: t.textMuted }}
+                    >
+                      ✕
+                    </button>
                   </div>
                 ))
               )}
@@ -257,6 +301,7 @@ export default function Home() {
                   <span className="font-semibold" style={{ color: t.text }}>LKR {cartTotal.toLocaleString()}</span>
                 </div>
                 <button
+                  onClick={() => setCheckoutOpen(true)}
                   className="w-full text-white py-3 rounded-xl font-medium text-sm"
                   style={{ background: '#da532c' }}
                 >
@@ -293,6 +338,17 @@ export default function Home() {
           </button>
         </div>
       </div>
+
+      {/* Gift message and checkout form — modal overlay */}
+      {checkoutOpen && (
+        <GiftMessageForm
+          cart={cart}
+          onSubmit={handleCheckout}
+          onCancel={() => setCheckoutOpen(false)}
+          darkMode={darkMode}
+          t={t}
+        />
+      )}
     </div>
   );
 }
