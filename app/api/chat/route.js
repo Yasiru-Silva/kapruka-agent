@@ -80,6 +80,8 @@ export async function POST(request) {
     // Send the conversation to Claude with access to Kapruka MCP tools
     // mcp_servers tells Claude where the tools live
     // betas enables the MCP connector feature (currently in beta)
+    const startTime = Date.now();
+    console.log('Starting Claude API call at', new Date().toISOString());
     const response = await client.beta.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1024,
@@ -102,7 +104,8 @@ export async function POST(request) {
       messages: messages,
       betas: ['mcp-client-2025-11-20'],
     });
-
+    console.log(`Claude API call took ${(Date.now() - startTime) / 1000}s`);
+    
     // Debug: log the full response content to see what blocks Claude returned
 console.log('Claude response content:', JSON.stringify(response.content, null, 2));
   // Extract the text reply and any structured product data from Claude's response
