@@ -7,17 +7,50 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 export default function Home() {
-  const [messages, setMessages] = useState([
+  // Default welcome message shown when there's no saved session
+  const defaultMessages = [
     {
       role: 'assistant',
       content: "Hey! I'm Kapu 👋 Your personal Kapruka shopping assistant. I can help you find products, suggest gifts, and guide you all the way to checkout. What are you looking for today?",
       products: [],
     }
-  ]);
+  ];
+
+  const [messages, setMessages] = useState(defaultMessages);
+  const [hydrated, setHydrated] = useState(false);
 
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [cart, setCart] = useState([]);
+
+  // On first load, restore the session from sessionStorage if it exists
+  // This survives page reloads (e.g. returning from the payment page) but clears when the tab closes
+  useEffect(() => {
+    try {
+      const savedMessages = sessionStorage.getItem('kapu_messages');
+      const savedCart = sessionStorage.getItem('kapu_cart');
+      if (savedMessages) setMessages(JSON.parse(savedMessages));
+      if (savedCart) setCart(JSON.parse(savedCart));
+    } catch (e) {
+      console.error('Failed to restore session:', e);
+    } finally {
+      setHydrated(true);
+    }
+  }, []);
+
+  // Save messages to sessionStorage whenever they change (after initial hydration)
+  useEffect(() => {
+    if (hydrated) {
+      sessionStorage.setItem('kapu_messages', JSON.stringify(messages));
+    }
+  }, [messages, hydrated]);
+
+  // Save cart to sessionStorage whenever it changes
+  useEffect(() => {
+    if (hydrated) {
+      sessionStorage.setItem('kapu_cart', JSON.stringify(cart));
+    }
+  }, [cart, hydrated]);
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
@@ -79,7 +112,8 @@ export default function Home() {
     setCartOpen(false);
 
     // Build a message to send to Kapu with all the order details
-    const cartSummary = cart.map(item => `${item.name} (x${item.quantity})`).join(', ');
+    // Include the product ID so Kapu doesn't need to re-search for it
+const cartSummary = cart.map(item => `${item.name} [ID: ${item.id}] (x${item.quantity})`).join(', ');
     const message = `Please place my order for: ${cartSummary}. 
 Deliver to: ${details.recipientName}, ${details.deliveryCity}. 
 Phone: ${details.recipientPhone}. 
@@ -225,6 +259,17 @@ Delivery date: ${details.deliveryDate}.${details.giftMessage ? ` Gift message: "
                         ),
                         td: ({ children }) => (
                           <td className="px-2 py-1 border-b" style={{ borderColor: t.border }}>{children}</td>
+                        ),
+                        a: ({ href, children }) => (
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline font-medium"
+                            style={{ color: '#da532c' }}
+                          >
+                            {children}
+                          </a>
                         ),
                       }}
                     >
