@@ -24,3 +24,36 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.chat-textarea {
+  resize: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.chat-textarea::-webkit-resizer {
+  display: none;
+}
+
+.chat-textarea::-webkit-inner-spin-button,
+.chat-textarea::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+  display: none;
+}
+
+.chat-textarea::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-textarea::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+  width: 0;
+}
+
+.chat-textarea::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: rgba(128, 128, 128, 0.4);
+}

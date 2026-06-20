@@ -55,6 +55,17 @@ export default function Home() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const bottomRef = useRef(null);
+  const textareaRef = useRef(null);
+  const MAX_INPUT_HEIGHT = 150;
+
+  function adjustTextareaHeight() {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const scrollHeight = el.scrollHeight;
+    el.style.height = `${Math.min(scrollHeight, MAX_INPUT_HEIGHT)}px`;
+    el.style.overflowY = scrollHeight > MAX_INPUT_HEIGHT ? 'auto' : 'hidden';
+  }
 
   // Theme colors — single source of truth for light/dark
   const t = {
@@ -73,6 +84,10 @@ export default function Home() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [input]);
 
   // Add product to cart — increment quantity if already exists
   function addToCart(product) {
@@ -276,7 +291,7 @@ Delivery date: ${details.deliveryDate}.${details.giftMessage ? ` Gift message: "
                       {msg.content}
                     </ReactMarkdown>
                   ) : (
-                    msg.content
+                    <div className="whitespace-pre-wrap">{msg.content}</div>
                   )}
                 </div>
               </div>
@@ -300,7 +315,7 @@ Delivery date: ${details.deliveryDate}.${details.giftMessage ? ` Gift message: "
               {/* Product carousel — shown below assistant messages with products */}
               {msg.role === 'assistant' && msg.products?.length > 0 && (
                 <div className="mt-2 px-1">
-                  <ProductCarousel products={msg.products} onAddToCart={addToCart} />
+                  <ProductCarousel products={msg.products} onAddToCart={addToCart} darkMode={darkMode} t={t} />
                 </div>
               )}
             </div>
@@ -389,7 +404,8 @@ Delivery date: ${details.deliveryDate}.${details.giftMessage ? ` Gift message: "
       >
         <div className="flex gap-3 items-end max-w-4xl mx-auto">
           <textarea
-            className="flex-1 rounded-2xl px-4 py-3 text-sm resize-none outline-none transition-colors"
+            ref={textareaRef}
+            className="chat-textarea flex-1 rounded-2xl px-4 py-3 text-sm outline-none transition-colors"
             style={{ background: t.inputBg, border: `0.5px solid ${t.border}`, color: t.text }}
             rows={1}
             placeholder="Ask Kapu anything..."

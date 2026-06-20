@@ -1,7 +1,7 @@
 // ProductCard component — displays a single Kapruka product
 // Shows a category icon (no real image available from search results),
 // name, price and a link to view on Kapruka
-export default function ProductCard({ product, onAddToCart }) {
+export default function ProductCard({ product, onAddToCart, darkMode, t }) {
 
   // Pick an icon and color based on keywords in the product name
   // Falls back to a generic gift box icon if nothing matches
@@ -20,14 +20,20 @@ export default function ProductCard({ product, onAddToCart }) {
   }
 
   const visual = getProductVisual(product.name);
+  const iconBg = darkMode
+    ? `color-mix(in srgb, ${visual.bg} 35%, ${t.surface})`
+    : visual.bg;
 
   return (
-    <div className="bg-gray-800 rounded-2xl overflow-hidden w-48 flex-shrink-0 border border-gray-700 hover:border-orange-500 transition-colors">
+    <div
+      className="rounded-2xl overflow-hidden w-48 flex-shrink-0 transition-colors hover:border-[#da532c]"
+      style={{ background: t.surface, border: `0.5px solid ${t.border}` }}
+    >
 
       {/* Product visual — category icon on a soft tinted background */}
       <div
         className="w-full h-40 flex items-center justify-center text-5xl"
-        style={{ background: visual.bg }}
+        style={{ background: iconBg }}
       >
         {visual.icon}
       </div>
@@ -36,12 +42,12 @@ export default function ProductCard({ product, onAddToCart }) {
       <div className="p-3 space-y-2">
 
         {/* Product Name */}
-        <p className="text-white text-xs font-medium leading-tight line-clamp-2">
+        <p className="text-xs font-medium leading-tight line-clamp-2" style={{ color: t.text }}>
           {product.name}
         </p>
 
         {/* Price */}
-        <p className="text-orange-400 text-sm font-bold">
+        <p className="text-sm font-bold" style={{ color: '#da532c' }}>
           LKR {product.price?.toLocaleString()}
         </p>
 
@@ -51,7 +57,8 @@ export default function ProductCard({ product, onAddToCart }) {
           {/* Add to Cart button */}
           <button
             onClick={() => onAddToCart(product)}
-            className="w-full bg-orange-500 hover:bg-orange-600 text-white text-xs py-1.5 rounded-lg transition-colors font-medium"
+            className="w-full text-white text-xs py-1.5 rounded-lg transition-colors font-medium hover:opacity-90"
+            style={{ background: '#da532c' }}
           >
             Add to Cart
           </button>
@@ -61,7 +68,8 @@ export default function ProductCard({ product, onAddToCart }) {
             href={product.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-full text-center text-gray-400 hover:text-white text-xs py-1.5 rounded-lg border border-gray-600 hover:border-gray-400 transition-colors block"
+            className="w-full text-center text-xs py-1.5 rounded-lg transition-colors block hover:opacity-80"
+            style={{ color: t.textMuted, border: `0.5px solid ${t.border}` }}
           >
             View Details
           </a>

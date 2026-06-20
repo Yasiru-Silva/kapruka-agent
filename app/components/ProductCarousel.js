@@ -2,7 +2,7 @@ import ProductCard from './ProductCard';
 
 // ProductCarousel component — displays a horizontally scrollable row of product cards
 // Rendered inside the chat when Kapu returns product results
-export default function ProductCarousel({ products, onAddToCart }) {
+export default function ProductCarousel({ products, onAddToCart, darkMode, t }) {
   if (!products || products.length === 0) return null;
 
   return (
@@ -15,6 +15,8 @@ export default function ProductCarousel({ products, onAddToCart }) {
             key={product.id}
             product={product}
             onAddToCart={onAddToCart}
+            darkMode={darkMode}
+            t={t}
           />
         ))}
       </div>
