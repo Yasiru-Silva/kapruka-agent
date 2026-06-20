@@ -1,23 +1,35 @@
 // ProductCard component — displays a single Kapruka product
-// Shows product image, name, price and a link to view on Kapruka
+// Shows a category icon (no real image available from search results),
+// name, price and a link to view on Kapruka
 export default function ProductCard({ product, onAddToCart }) {
+
+  // Pick an icon and color based on keywords in the product name
+  // Falls back to a generic gift box icon if nothing matches
+  function getProductVisual(name) {
+    const n = name.toLowerCase();
+    if (n.includes('cake')) return { icon: '🎂', bg: '#fde8e0' };
+    if (n.includes('flower') || n.includes('rose') || n.includes('bouquet')) return { icon: '💐', bg: '#fce4f2' };
+    if (n.includes('chocolate')) return { icon: '🍫', bg: '#f0e4d8' };
+    if (n.includes('phone') || n.includes('mobile') || n.includes('laptop')) return { icon: '📱', bg: '#e0e8fc' };
+    if (n.includes('jewel') || n.includes('ring') || n.includes('necklace')) return { icon: '💍', bg: '#fcf0d8' };
+    if (n.includes('perfume') || n.includes('fragrance')) return { icon: '🌸', bg: '#f4e0fc' };
+    if (n.includes('toy') || n.includes('kids')) return { icon: '🧸', bg: '#e0fcf0' };
+    if (n.includes('book')) return { icon: '📚', bg: '#e8e0fc' };
+    if (n.includes('food') || n.includes('hamper') || n.includes('snack')) return { icon: '🧺', bg: '#fcf4e0' };
+    return { icon: '🎁', bg: '#f0ecff' };
+  }
+
+  const visual = getProductVisual(product.name);
+
   return (
     <div className="bg-gray-800 rounded-2xl overflow-hidden w-48 flex-shrink-0 border border-gray-700 hover:border-orange-500 transition-colors">
 
-      {/* Product Image */}
-      <div className="w-full h-40 bg-gray-700 overflow-hidden">
-        {product.image ? (
-          <img
-            src={product.image}
-            alt={product.name}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          // Fallback if no image available
-          <div className="w-full h-full flex items-center justify-center text-gray-500 text-xs">
-            No image
-          </div>
-        )}
+      {/* Product visual — category icon on a soft tinted background */}
+      <div
+        className="w-full h-40 flex items-center justify-center text-5xl"
+        style={{ background: visual.bg }}
+      >
+        {visual.icon}
       </div>
 
       {/* Product Details */}
