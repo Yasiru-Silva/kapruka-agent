@@ -1,65 +1,413 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useRef, useEffect } from 'react';
+import ProductCarousel from './components/ProductCarousel';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 export default function Home() {
+  // Default welcome message shown when there's no saved session
+  const defaultMessages = [
+    {
+      role: 'assistant',
+      content: "Hey! I'm Kapu 👋 Your personal Kapruka shopping assistant. I can help you find products, suggest gifts, and guide you all the way to checkout. What are you looking for today?",
+      products: [],
+    }
+  ];
+
+  const [messages, setMessages] = useState(defaultMessages);
+  const [hydrated, setHydrated] = useState(false);
+
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [cart, setCart] = useState([]);
+  const [avatarError, setAvatarError] = useState(false);
+
+  // On first load, restore the session from sessionStorage if it exists
+  // This survives page reloads (e.g. returning from the payment page) but clears when the tab closes
+  useEffect(() => {
+    try {
+      const savedMessages = sessionStorage.getItem('kapu_messages');
+      const savedCart = sessionStorage.getItem('kapu_cart');
+      if (savedMessages) setMessages(JSON.parse(savedMessages));
+      if (savedCart) setCart(JSON.parse(savedCart));
+    } catch (e) {
+      console.error('Failed to restore session:', e);
+    } finally {
+      setHydrated(true);
+    }
+  }, []);
+
+  // Save messages to sessionStorage whenever they change (after initial hydration)
+  useEffect(() => {
+    if (hydrated) {
+      sessionStorage.setItem('kapu_messages', JSON.stringify(messages));
+    }
+  }, [messages, hydrated]);
+
+  // Save cart to sessionStorage whenever it changes
+  useEffect(() => {
+    if (hydrated) {
+      sessionStorage.setItem('kapu_cart', JSON.stringify(cart));
+    }
+  }, [cart, hydrated]);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const bottomRef = useRef(null);
+  const textareaRef = useRef(null);
+  const MAX_INPUT_HEIGHT = 150;
+
+  function adjustTextareaHeight() {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const scrollHeight = el.scrollHeight;
+    el.style.height = `${Math.min(scrollHeight, MAX_INPUT_HEIGHT)}px`;
+    el.style.overflowY = scrollHeight > MAX_INPUT_HEIGHT ? 'auto' : 'hidden';
+  }
+
+  // Theme colors — single source of truth for light/dark
+  const t = {
+    bg: darkMode ? '#1a1625' : '#f0ebff',
+    surface: darkMode ? '#211d2e' : '#faf8ff',
+    border: darkMode ? '#2d2640' : '#ddd6f5',
+    borderStrong: darkMode ? '#3d3555' : '#ddd6f5',
+    text: darkMode ? '#e0e0e0' : '#1a1a1a',
+    textMuted: darkMode ? '#aaa' : '#555',
+    textFaint: darkMode ? '#666' : '#aaa',
+    chipBg: darkMode ? '#2d2640' : '#f0ebff',
+    inputBg: darkMode ? '#2d2640' : '#ede8ff',
+    cartItemBg: darkMode ? '#2d2640' : '#ede8ff',
+  };
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [input]);
+
+  // Add product to cart — increment quantity if already exists
+  function addToCart(product) {
+    setCart(prev => {
+      const existing = prev.find(item => item.id === product.id);
+      if (existing) {
+        return prev.map(item =>
+          item.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        );
+      }
+      return [...prev, { ...product, quantity: 1 }];
+    });
+  }
+
+  // Remove product from cart entirely
+  function removeFromCart(productId) {
+    setCart(prev => prev.filter(item => item.id !== productId));
+  }
+
+  const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Quick suggestion chips shown below the welcome message
+  const suggestions = [
+    { label: '🎁 Find a gift', message: 'I need to find a gift' },
+    { label: '🎂 Browse cakes', message: 'Show me some cakes' },
+    { label: '💐 Send flowers', message: 'I want to send flowers' },
+    { label: '📦 Track my order', message: 'I want to track my order' },
+  ];
+
+  async function sendMessage(text) {
+    const messageText = text || input;
+    if (!messageText.trim() || loading) return;
+
+    const userMessage = { role: 'user', content: messageText, products: [] };
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // Only send role and content to API — not UI-only fields
+        body: JSON.stringify({
+          messages: [...messages, userMessage].map(({ role, content }) => ({ role, content })),
+          cart: cart.map(({ id, name, price, quantity }) => ({ id, name, price, quantity })),
+        }),
+      });
+      const data = await res.json();
+      setMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: data.reply, products: data.products || [] }
+      ]);
+    } catch (err) {
+      setMessages(prev => [
+        ...prev,
+        { role: 'assistant', content: 'Sorry, something went wrong. Please try again!', products: [] }
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.js file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="flex flex-col h-screen transition-colors duration-200" style={{ background: t.bg }}>
+
+      {/* Header */}
+      <div
+        className="flex items-center gap-3 px-6 py-4 transition-colors"
+        style={{ background: t.surface, borderBottom: `0.5px solid ${t.border}` }}
+      >
+        {/* Kapu avatar */}
+        <div
+          className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-lg flex-shrink-0"
+          style={{ background: t.surface, color: t.text }}
+        >
+          {!avatarError ? (
+            <img
+              src="/kapruka-favicon.ico"
+              alt="Kapruka"
+              className="w-full h-full object-contain rounded-full"
+              onError={() => setAvatarError(true)}
+              onLoad={() => setAvatarError(false)}
+            />
+          ) : (
+            'K'
+          )}
+        </div>
+
+        {/* Name and status */}
+        <div>
+          <h1 className="font-semibold" style={{ color: t.text }}>Kapu</h1>
+          <p className="text-xs text-green-500 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
+            Online
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <span className="ml-auto text-xs mr-3" style={{ color: t.textFaint }}>Powered by Kapruka</span>
+
+        {/* Dark mode toggle */}
+        <button
+          onClick={() => setDarkMode(prev => !prev)}
+          className="w-9 h-9 rounded-full flex items-center justify-center mr-2 transition-colors text-sm"
+          style={{ background: t.chipBg, border: `0.5px solid ${t.border}` }}
+          title="Toggle dark mode"
+        >
+          {darkMode ? '☀️' : '🌙'}
+        </button>
+
+        {/* Cart button */}
+        <button
+          onClick={() => setCartOpen(prev => !prev)}
+          className="relative flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-colors"
+          style={{ background: darkMode ? t.chipBg : t.bg, border: `0.5px solid ${t.border}`, color: t.textMuted }}
+        >
+          🛒 Cart
+          {cartCount > 0 && (
+            <span
+              className="absolute -top-1 -right-1 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-medium"
+              style={{ background: '#da532c' }}
+            >
+              {cartCount}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Main area — chat + optional cart sidebar */}
+      <div className="flex flex-1 overflow-hidden">
+
+        {/* Chat messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+          {messages.map((msg, i) => (
+            <div key={i}>
+              <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div
+                  className="max-w-[75%] px-4 py-3 text-sm leading-relaxed"
+                  style={
+                    msg.role === 'user'
+                      ? { background: '#da532c', color: '#fff', borderRadius: '16px 16px 4px 16px' }
+                      : { background: t.surface, color: t.text, borderRadius: '16px 16px 16px 4px', border: `0.5px solid ${t.borderStrong}` }
+                  }
+                >
+                  {/* Assistant messages render as markdown (bold, lists, links).
+                      User messages render as plain text. */}
+                  {msg.role === 'assistant' ? (
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                        table: ({ children }) => (
+                          <table className="w-full text-xs my-2 border-collapse">{children}</table>
+                        ),
+                        th: ({ children }) => (
+                          <th className="text-left px-2 py-1 border-b font-medium" style={{ borderColor: t.border }}>{children}</th>
+                        ),
+                        td: ({ children }) => (
+                          <td className="px-2 py-1 border-b" style={{ borderColor: t.border }}>{children}</td>
+                        ),
+                        a: ({ href, children }) => (
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline font-medium"
+                            style={{ color: '#da532c' }}
+                          >
+                            {children}
+                          </a>
+                        ),
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
+                  ) : (
+                    <div className="whitespace-pre-wrap">{msg.content}</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Suggestion chips — only shown below the first welcome message */}
+              {i === 0 && (
+                <div className="flex gap-2 flex-wrap mt-3">
+                  {suggestions.map(s => (
+                    <button
+                      key={s.label}
+                      onClick={() => sendMessage(s.message)}
+                      className="px-3 py-1.5 rounded-full text-xs transition-colors"
+                      style={{ background: t.chipBg, border: `0.5px solid ${t.border}`, color: t.textMuted }}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Product carousel — shown below assistant messages with products */}
+              {msg.role === 'assistant' && msg.products?.length > 0 && (
+                <div className="mt-2 px-1">
+                  <ProductCarousel products={msg.products} onAddToCart={addToCart} darkMode={darkMode} t={t} />
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* Typing indicator */}
+          {loading && (
+            <div className="flex justify-start">
+              <div
+                className="px-4 py-3 text-sm"
+                style={{ background: t.surface, color: t.textMuted, border: `0.5px solid ${t.border}`, borderRadius: '16px 16px 16px 4px' }}
+              >
+                Kapu is typing...
+              </div>
+            </div>
+          )}
+          <div ref={bottomRef} />
         </div>
-      </main>
+
+        {/* Cart sidebar */}
+        {cartOpen && (
+          <div
+            className="w-80 flex flex-col transition-colors"
+            style={{ background: t.surface, borderLeft: `0.5px solid ${t.border}` }}
+          >
+            <div
+              className="px-4 py-4 flex items-center justify-between"
+              style={{ borderBottom: `0.5px solid ${t.border}` }}
+            >
+              <h2 className="font-semibold" style={{ color: t.text }}>Your Cart</h2>
+              <button onClick={() => setCartOpen(false)} style={{ color: t.textMuted }}>✕</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+              {cart.length === 0 ? (
+                <p className="text-sm text-center mt-8" style={{ color: t.textMuted }}>Your cart is empty</p>
+              ) : (
+                cart.map(item => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-3 rounded-xl p-3"
+                    style={{ background: t.cartItemBg, border: `0.5px solid ${t.border}` }}
+                  >
+                    {item.image && (
+                      <img src={item.image} alt={item.name} className="w-12 h-12 rounded-lg object-cover" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate" style={{ color: t.text }}>{item.name}</p>
+                      <p className="text-xs" style={{ color: '#da532c' }}>LKR {item.price?.toLocaleString()} × {item.quantity}</p>
+                    </div>
+                    <button
+                      onClick={() => removeFromCart(item.id)}
+                      className="text-xs hover:text-red-400"
+                      style={{ color: t.textMuted }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {cart.length > 0 && (
+              <div className="px-4 py-4 space-y-3" style={{ borderTop: `0.5px solid ${t.border}` }}>
+                <div className="flex justify-between text-sm">
+                  <span style={{ color: t.textMuted }}>Total</span>
+                  <span className="font-semibold" style={{ color: t.text }}>LKR {cartTotal.toLocaleString()}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    sendMessage("I'd like to checkout");
+                    setCartOpen(false);
+                  }}
+                  className="w-full text-white py-3 rounded-xl font-medium text-sm"
+                  style={{ background: '#da532c' }}
+                >
+                  Proceed to Checkout
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Input area */}
+      <div
+        className="px-4 py-4 transition-colors"
+        style={{ background: t.surface, borderTop: `0.5px solid ${t.border}` }}
+      >
+        <div className="flex gap-3 items-end max-w-4xl mx-auto">
+          <textarea
+            ref={textareaRef}
+            className="chat-textarea flex-1 rounded-2xl px-4 py-3 text-sm outline-none transition-colors"
+            style={{ background: t.inputBg, border: `0.5px solid ${t.border}`, color: t.text }}
+            rows={1}
+            placeholder="Ask Kapu anything..."
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+          />
+          <button
+            onClick={() => sendMessage()}
+            disabled={loading || !input.trim()}
+            className="text-white px-5 py-3 rounded-2xl text-sm font-medium transition-colors disabled:opacity-50"
+            style={{ background: '#da532c' }}
+          >
+            Send
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
