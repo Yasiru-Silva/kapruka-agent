@@ -68,16 +68,16 @@ export default function Home() {
 
   // Theme colors — single source of truth for light/dark
   const t = {
-    bg: darkMode ? '#1a1625' : '#f5f3ff',
-    surface: darkMode ? '#211d2e' : '#f5f3ff',
-    border: darkMode ? '#2d2640' : '#e4dff5',
-    borderStrong: darkMode ? '#3d3555' : '#e4dff5',
+    bg: darkMode ? '#1a1625' : '#f0ebff',
+    surface: darkMode ? '#211d2e' : '#faf8ff',
+    border: darkMode ? '#2d2640' : '#ddd6f5',
+    borderStrong: darkMode ? '#3d3555' : '#ddd6f5',
     text: darkMode ? '#e0e0e0' : '#1a1a1a',
-    textMuted: darkMode ? '#aaa' : '#666',
-    textFaint: darkMode ? '#666' : '#bbb',
-    chipBg: darkMode ? '#2d2640' : '#f5f3ff',
-    inputBg: darkMode ? '#2d2640' : '#f5f3ff',
-    cartItemBg: darkMode ? '#2d2640' : '#f5f3ff',
+    textMuted: darkMode ? '#aaa' : '#555',
+    textFaint: darkMode ? '#666' : '#aaa',
+    chipBg: darkMode ? '#2d2640' : '#f0ebff',
+    inputBg: darkMode ? '#2d2640' : '#ede8ff',
+    cartItemBg: darkMode ? '#2d2640' : '#ede8ff',
   };
 
   useEffect(() => {
