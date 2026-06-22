@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react';
 import ProductCarousel from './components/ProductCarousel';
-import GiftMessageForm from './components/GiftMessageForm';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -22,6 +21,7 @@ export default function Home() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [cart, setCart] = useState([]);
+  const [avatarError, setAvatarError] = useState(false);
 
   // On first load, restore the session from sessionStorage if it exists
   // This survives page reloads (e.g. returning from the payment page) but clears when the tab closes
@@ -52,7 +52,6 @@ export default function Home() {
     }
   }, [cart, hydrated]);
   const [cartOpen, setCartOpen] = useState(false);
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
@@ -70,13 +69,13 @@ export default function Home() {
   // Theme colors — single source of truth for light/dark
   const t = {
     bg: darkMode ? '#1a1625' : '#f5f3ff',
-    surface: darkMode ? '#211d2e' : '#fff',
+    surface: darkMode ? '#211d2e' : '#f5f3ff',
     border: darkMode ? '#2d2640' : '#e4dff5',
     borderStrong: darkMode ? '#3d3555' : '#e4dff5',
     text: darkMode ? '#e0e0e0' : '#1a1a1a',
     textMuted: darkMode ? '#aaa' : '#666',
     textFaint: darkMode ? '#666' : '#bbb',
-    chipBg: darkMode ? '#2d2640' : '#fff',
+    chipBg: darkMode ? '#2d2640' : '#f5f3ff',
     inputBg: darkMode ? '#2d2640' : '#f5f3ff',
     cartItemBg: darkMode ? '#2d2640' : '#f5f3ff',
   };
@@ -109,34 +108,6 @@ export default function Home() {
     setCart(prev => prev.filter(item => item.id !== productId));
   }
 
-  // Handle checkout form submission
-  // Sends order details to Kapu who will call kapruka_create_order
-  function handleCheckout(e) {
-    e.preventDefault();
-    const form = e.target;
-    const details = {
-      recipientName: form.recipientName.value,
-      recipientPhone: form.recipientPhone.value,
-      deliveryCity: form.deliveryCity.value,
-      deliveryDate: form.deliveryDate.value,
-      giftMessage: form.giftMessage.value,
-    };
-
-    // Close the form and cart
-    setCheckoutOpen(false);
-    setCartOpen(false);
-
-    // Build a message to send to Kapu with all the order details
-    // Include the product ID so Kapu doesn't need to re-search for it
-const cartSummary = cart.map(item => `${item.name} [ID: ${item.id}] (x${item.quantity})`).join(', ');
-    const message = `Please place my order for: ${cartSummary}. 
-Deliver to: ${details.recipientName}, ${details.deliveryCity}. 
-Phone: ${details.recipientPhone}. 
-Delivery date: ${details.deliveryDate}.${details.giftMessage ? ` Gift message: "${details.giftMessage}".` : ''}`;
-
-    sendMessage(message);
-  }
-
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -164,6 +135,7 @@ Delivery date: ${details.deliveryDate}.${details.giftMessage ? ` Gift message: "
         // Only send role and content to API — not UI-only fields
         body: JSON.stringify({
           messages: [...messages, userMessage].map(({ role, content }) => ({ role, content })),
+          cart: cart.map(({ id, name, price, quantity }) => ({ id, name, price, quantity })),
         }),
       });
       const data = await res.json();
@@ -198,10 +170,20 @@ Delivery date: ${details.deliveryDate}.${details.giftMessage ? ` Gift message: "
       >
         {/* Kapu avatar */}
         <div
-          className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-white text-lg flex-shrink-0"
-          style={{ background: '#da532c' }}
+          className="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-lg flex-shrink-0"
+          style={{ background: t.surface, color: t.text }}
         >
-          K
+          {!avatarError ? (
+            <img
+              src="/kapruka-favicon.ico"
+              alt="Kapruka"
+              className="w-full h-full object-contain rounded-full"
+              onError={() => setAvatarError(true)}
+              onLoad={() => setAvatarError(false)}
+            />
+          ) : (
+            'K'
+          )}
         </div>
 
         {/* Name and status */}
@@ -229,7 +211,7 @@ Delivery date: ${details.deliveryDate}.${details.giftMessage ? ` Gift message: "
         <button
           onClick={() => setCartOpen(prev => !prev)}
           className="relative flex items-center gap-2 px-4 py-2 rounded-full text-sm transition-colors"
-          style={{ background: t.chipBg, border: `0.5px solid ${t.border}`, color: t.textMuted }}
+          style={{ background: darkMode ? t.chipBg : t.bg, border: `0.5px solid ${t.border}`, color: t.textMuted }}
         >
           🛒 Cart
           {cartCount > 0 && (
@@ -385,7 +367,10 @@ Delivery date: ${details.deliveryDate}.${details.giftMessage ? ` Gift message: "
                   <span className="font-semibold" style={{ color: t.text }}>LKR {cartTotal.toLocaleString()}</span>
                 </div>
                 <button
-                  onClick={() => setCheckoutOpen(true)}
+                  onClick={() => {
+                    sendMessage("I'd like to checkout");
+                    setCartOpen(false);
+                  }}
                   className="w-full text-white py-3 rounded-xl font-medium text-sm"
                   style={{ background: '#da532c' }}
                 >
@@ -423,17 +408,6 @@ Delivery date: ${details.deliveryDate}.${details.giftMessage ? ` Gift message: "
           </button>
         </div>
       </div>
-
-      {/* Gift message and checkout form — modal overlay */}
-      {checkoutOpen && (
-        <GiftMessageForm
-          cart={cart}
-          onSubmit={handleCheckout}
-          onCancel={() => setCheckoutOpen(false)}
-          darkMode={darkMode}
-          t={t}
-        />
-      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { NextResponse } from 'next/server';
 
 // Initialize the Anthropic client using the API key from environment variables
 const client = new Anthropic({
@@ -89,7 +90,11 @@ Only include this block when you have actual products to show. Skip it for gener
 export async function POST(request) {
   try {
     // Parse the incoming request body to get the message history
-    const { messages } = await request.json();
+    const { messages, cart } = await request.json();
+
+    const cartContext = cart?.length
+      ? `\n\n[SYSTEM CONTEXT — current cart contents, not visible to user: ${JSON.stringify(cart)}]`
+      : '';
 
     // Send the conversation to Claude with access to Kapruka MCP tools
     // mcp_servers tells Claude where the tools live
@@ -99,7 +104,7 @@ export async function POST(request) {
     const response = await client.beta.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1024,
-      system: SYSTEM_PROMPT,
+      system: SYSTEM_PROMPT + cartContext,
       mcp_servers: [
         {
           // Kapruka's public MCP server — no auth required
@@ -146,13 +151,13 @@ const textBlock = textBlocks[textBlocks.length - 1];
     }
 
     // Send the reply and structured product data back to the frontend
-    return Response.json({ reply, products });
+    return NextResponse.json({ reply, products });
   } catch (error) {
     // Log the error server-side for debugging
     console.error('Chat error:', error);
 
     // Return a friendly error message to the frontend
-    return Response.json(
+    return NextResponse.json(
       { reply: 'Sorry, I ran into an issue. Please try again!' },
       { status: 500 }
     );
