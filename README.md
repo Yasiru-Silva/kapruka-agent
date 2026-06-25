@@ -1,4 +1,4 @@
----
+
 
 # Kapu — AI Shopping Assistant for Kapruka.com
 
